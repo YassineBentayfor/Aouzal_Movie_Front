@@ -99,53 +99,59 @@
   </div>
 </div>
 
+
 <div class="container mt-4">
   <div class="row">
     <div class="col-md-8">
-      <h1 class="mb-3">Comments</h1>
+      <h3 class="mb-3"></h3>
       <!-- Add a form for submitting comments -->
-      <form (ngSubmit)="submitComment()">
+      <form (ngSubmit)="submit_commentaire()">
         <div class="mb-3">
-          <label for="nom" class="form-label">Nom</label>
-          <input type="text" class="form-control" id="nom" [(ngModel)]="formData.nom" name="nom" required>
+          <label for="nom" class="form-label" >Title</label>
+          <input type="text" class="form-control" id="nom" [(ngModel)]="formData.nom" name="nom" required placeholder="Enter a Title"  >
         </div>
         <div class="mb-3">
           <label for="comment" class="form-label">Leave a Comment:</label>
-          <div class="NgxEditor__Wrapper" style="height: 200px" >
-            <ngx-editor-menu [editor]="editor"> </ngx-editor-menu>
-            <ngx-editor [editor]="editor" [ngModel]="html" [disabled]="false" id="comment"
-                        [(ngModel)]="formData.comment" name="comment" [placeholder]="'Type here...'"></ngx-editor>
+          <div class="ngx-editor-container">
+            <ngx-editor-menu [editor]="editor" class="ngx-editor-content"></ngx-editor-menu>
+            <ngx-editor
+
+              style="height: 200px"
+              [editor]="editor"
+              [ngModel]="html"
+              [disabled]="false"
+              id="comment"
+              [(ngModel)]="formData.comment"
+              name="comment"
+              [placeholder]="'Type here...'"
+            ></ngx-editor>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary" >Submit Comment</button>
-      </form>
 
-      <div class="container mt-4 mb-4">
-        <div class="row">
-          <div class="">
-            <h1 class="mb-3">Comments</h1>
-            <ul class="list-group">
-              <li class="list-group-item" *ngFor="let comment of comments;  let i = index">
-                <div class="card mb-2">
-                  <div class="card-body">
-                    <p class="card-text">
-                      <strong>Name:</strong> {{ comment.username }}
-                    </p>
-                    <div class="card-text" [innerHTML]="sanitizeHTML(comment.data)"></div>
-                    <!-- Add a button to delete the message -->
-                    <button type="button" class="btn btn-danger" (click)="deleteComment(i)">
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </li>
-            </ul>
-          </div>
+        <button type="submit" class="btn btn-primary" [disabled]="form.valid">Submit Comment</button>
+      </form>
+    </div>
+
+  </div>
+  <div class="container mt-4 mb-4">
+    <h3 class="form-label">Comments Section</h3>
+    <div class="comment-section">
+      <div *ngFor="let comment of commentaireFiltred" class="comment">
+        <div class="comment-header">
+          <strong>{{ comment.name }}</strong>
+          <button type="button" class="btn btn-danger" (click)="deleteComment(comment.id)">
+            Delete
+          </button>
+        </div>
+        <div class="comment-body">
+          <p [innerHTML]="sanitizeHTML(comment.commentaire)"></p>
         </div>
       </div>
     </div>
   </div>
+
 </div>
+
 
 
 <!-- Bootstrap JS (optional) -->

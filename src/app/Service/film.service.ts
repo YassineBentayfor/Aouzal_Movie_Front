@@ -19,6 +19,8 @@ export class FilmService {
   private readonly baseurl = 'https://api.themoviedb.org/3/discover/movie';
   private readonly apikey = '4722616a8836f0b929a9cb3a04f6a6a4';
   private readonly dbPath = '/Movies';
+  private secondBaseUrl = "http://localhost:9999/Commentaire";
+  private favoritesUrl = 'http://localhost:9999/api';
   favoritesChanged: Subject<Favorite[]> = new Subject<Favorite[]>();
   favoritesMoviesIds: Subject<number[]> = new Subject<number[]>();
   commentsChanged: Subject<Comment[]> = new Subject<Comment[]>();
@@ -29,10 +31,12 @@ export class FilmService {
   filteredFilms$ = this.filteredFilmsSource.asObservable();
 
   user: User;
+
   constructor(
     private http: HttpClient,
     private usersService: UsersloginService
-  ) {}
+  ) {
+  }
 
   setAllFilms(films: Film[]) {
     this.allFilmsSource.next(films);
@@ -47,53 +51,30 @@ export class FilmService {
     return this.http.get<Film[]>(`${this.api}${this.dbPath}.json`);
   }
 
-  getComments(movieKey: number): Observable<Comment[]> {
-    return this.http
-      .get<Comment[]>(`${this.api}${this.dbPath}/${movieKey}/comments.json`)
-      .pipe(
-        map((response) => {
-          if (!response) {
-            return [];
-          }
 
-          const comments: Comment[] = [];
-          for (const key in response) {
-            if (response.hasOwnProperty(key)) {
-              comments.push({ id: key, ...response[key] }); // Assign the ID
-            }
-          }
-          return comments;
-        }),
-        tap((comments) => {
-          this.commentsChanged.next(comments); // Notify subscribers about comments changes
-        })
-      );
+  getCommentaire(): Observable<any> {
+    return this.http.get<any>(`${this.secondBaseUrl}/commentaires`)
   }
 
-  updateComment(
-    movieKey: number,
-    commentId: number,
-    CommentData: any
-  ): Observable<any> {
-    return this.http.put(
-      `${this.api}${this.dbPath}/${movieKey}/comments/${commentId}.json`,
-      CommentData
-    );
+  getCommentaireFiltred(idFilm: number): Observable<any> {
+    return this.http.get<any>(`${this.secondBaseUrl}/find/${idFilm}`)
   }
 
-  deleteComment(movieKey: number, commentId: number): Observable<any> {
-    console.log('Deleting comment with id:', movieKey);
-    return this.http
-      .delete<Comment>(
-        `${this.api}${this.dbPath}/${movieKey}/comments/${commentId}.json`
-      )
-      .pipe(
-        switchMap(() => this.getComments(movieKey)),
-        tap((comments) => {
-          this.commentsChanged.next(comments); // Notify about comments changes
-        })
-      );
+  addComment(commentData: any): Observable<any> {
+    return this.http.post<any>(`${this.secondBaseUrl}/add`, commentData);
   }
+
+  deleteComment(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.secondBaseUrl}/delete/${id}`);
+  }
+
+
+  getPopularMoviesById(id: number): Observable<any> {
+    const url = `https://api.themoviedb.org/3/movie/${id}?api_key=${this.apikey}`;
+    return this.http.get<any>(url);
+
+  }
+
 
   getPopularMovies(): Observable<any> {
     return this.http.get<any>(`${this.baseurl}?api_key=${this.apikey}`);
@@ -113,111 +94,35 @@ export class FilmService {
     return this.http.get<any>(url).pipe(map((res: any) => res.results));
   }
 
-  getFavoriteMovies(userId: number): Observable<Film[]> {
-    return this.getFavoriteMoviesIds(userId).pipe(
-      switchMap((favoriteMovieIds) => {
-        const moviesRequests: Observable<Film>[] = [];
 
-        for (const favorite of favoriteMovieIds) {
-          const movieRequest = this.getMovieById(favorite);
-          moviesRequests.push(movieRequest);
-        }
+  // FAAAAAAAAAAAAAVVVVVVVVVVVVVOOOOOOOOOOOOOOOORRRRRRRRRRRRRRRIIIIIIIIIIIIIIIIIIITTTTTTTTTTTTTTTTTTTTTTEEEEEEEEE
 
-        return forkJoin(moviesRequests);
-      })
-    );
-  }
 
-  private extractMovieIdsFromFavorites(favoriteMovies: Favorite[]): number[] {
-    return favoriteMovies.map((favorite) => favorite.movieKey);
+  extractMovieIdsFromFavorites(favoriteMovies: any[]): number[] {
+    return favoriteMovies.map((favorite) => favorite.movieId);
   }
 
   // Get favorite movie IDs
-  getFavoriteMoviesIds(userId: number): Observable<number[]> {
-    console.log(userId);
-    return this.http
-      .get<Favorite[]>(`${this.api}/users/${userId}/favorites.json`)
-      .pipe(
-        map((response: Favorite[]) => {
-          console.log('Received favorite movies:', response);
+  getFavoriteMovieIds(): Observable<number[]> {
+    return this.http.get<any[]>(`${this.favoritesUrl}/favorite`).pipe(
+      map((response: any[]) => {
+        console.log('Received favorite movies:', response);
 
-          // Filter out null or undefined favorites and extract movie IDs
-          const movieIds = response
-            .filter(
-              (favorite) => favorite && typeof favorite.movieKey === 'number'
-            )
-            .map((favorite) => favorite.movieKey);
+        const movieIds = this.extractMovieIdsFromFavorites(response);
+        console.log('Extracted movie IDs:', movieIds);
 
-          console.log('Extracted movie IDs:', movieIds);
-
-          return movieIds; // Return extracted movie IDs
-        }),
-        tap((favorites) => {
-          // Notify subscribers about favorites changes
-          this.favoritesMoviesIds.next(favorites);
-        })
-      );
-  }
-
-  addComment(movieKey: number, comment: Comment): Observable<any> {
-    return this.getComments(movieKey).pipe(
-      switchMap((existingComments) => {
-        const updatedComments = [...existingComments, comment];
-        return this.putComments(movieKey, updatedComments);
+        return movieIds; // Return extracted movie IDs
       })
     );
   }
 
-  private putComments(movieKey: number, comments: Comment[]): Observable<any> {
-    return this.http.put(
-      `${this.api}${this.dbPath}/${movieKey}/comments.json`,
-      comments
-    );
-  }
-  getFavorites(userId: number): Observable<Favorite[]> {
-    return this.http
-      .get<Favorite[]>(`${this.api}/users/${userId}/favorites.json`)
-      .pipe(
-        map((response) => response || []),
-        tap((favorites) => {
-          this.favoritesChanged.next(favorites);
-          this.favoritesMoviesIds.next(
-            this.extractMovieIdsFromFavorites(favorites)
-          );
-        })
-      );
-  }
-  addFavoriteMovie(userId: number, movieKey: number): Observable<any> {
-    return this.getFavorites(userId).pipe(
-      switchMap((favorites) => {
-        if (favorites.some((favorite) => favorite.movieKey === movieKey)) {
-          return of(favorites); // Film already in favorites, no need to add
-        }
-
-        const updatedFavorites = [...favorites, { movieKey }];
-
-        // Update the favorites list on the server
-        return this.http
-          .put(`${this.api}/users/${userId}/favorites.json`, updatedFavorites)
-          .pipe(
-            tap(() => {
-              // Notify subscribers about favorites changes
-              this.favoritesChanged.next(updatedFavorites);
-              // Notify subscribers specifically about changes in movie IDs
-              this.favoritesMoviesIds.next(
-                this.extractMovieIdsFromFavorites(updatedFavorites)
-              );
-            })
-          );
-      })
-    );
+  // Add a movie to favorites
+  addFavoriteMovie(movieId: number): Observable<any> {
+    return this.http.post<any>(`${this.favoritesUrl}/add/${movieId}`, {});
   }
 
   // Remove a movie from favorites
-  removeFavoriteMovie(userId: number, movieKey: number): Observable<any> {
-    // Assuming movieKey is used as an identifier
-    return this.http.delete<any>(
-      `${this.api}/users/${userId}/favorites/${movieKey}.json`
-    );
+  removeFavoriteMovie(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.favoritesUrl}/delete/${id}`);
   }
 }
